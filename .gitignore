@@ -1,0 +1,10 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+dist/
+# NOTE: keystore/ is intentionally NOT ignored (fixed signing key lives there).
