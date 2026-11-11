@@ -1,0 +1,13 @@
+<resources>
+    <!-- AppCompat is already a project dependency; use its compatible dark no-action-bar theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">#7C4DFF</item>
+        <item name="colorPrimaryDark">#512DA8</item>
+        <item name="colorAccent">#00E5FF</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:statusBarColor">#090B18</item>
+        <item name="android:navigationBarColor">#090B18</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+</resources>
