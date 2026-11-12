@@ -119,7 +119,9 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(Color.BLACK)
         }
         preview = PreviewView(this).apply {
-            scaleType = PreviewView.ScaleType.FIT_CENTER
+            // Fill the complete camera canvas; crop the 4:3 sensor feed as needed.
+            // Still capture remains 4:3, while the live preview no longer appears letterboxed.
+            scaleType = PreviewView.ScaleType.FILL_CENTER
             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         }
         preview.setOnTouchListener { _, event ->
@@ -138,8 +140,9 @@ class MainActivity : AppCompatActivity() {
             visibility = View.GONE
             setBackgroundColor(Color.BLACK)
         }
-        val previewHeight = (resources.displayMetrics.widthPixels * 3f / 4f).toInt()
-        root.addView(preview, FrameLayout.LayoutParams(-1, previewHeight, Gravity.CENTER))
+        // Preview fills the entire screen behind camera controls. FILL_CENTER crops
+        // the live 4:3 feed rather than shrinking it into a small centered rectangle.
+        root.addView(preview, FrameLayout.LayoutParams(-1, -1, Gravity.CENTER))
         root.addView(photo, FrameLayout.LayoutParams(-1, -1))
 
         val topBar = LinearLayout(this).apply {
