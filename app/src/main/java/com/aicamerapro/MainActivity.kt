@@ -57,7 +57,7 @@ class MainActivity : AppCompatActivity() {
     private var original: Bitmap? = null
     private var enhanced: Bitmap? = null
     private var currentMode = EnhanceMode.AI
-    private var intensity = 0.50f
+    private var intensity = 0.58f
     private var showingOriginal = false
     private var cameraBound = false
     private var cameraProvider: ProcessCameraProvider? = null
@@ -93,7 +93,7 @@ class MainActivity : AppCompatActivity() {
             startupMode = stored[1]
             currentMode = runCatching { EnhanceMode.valueOf(startupMode) }.getOrDefault(EnhanceMode.AI)
             defaultPortraitBlur = stored[2].toFloatOrNull()?.coerceIn(0.25f, 1f) ?: 0.50f
-            intensity = defaultPortraitBlur
+            intensity = 0.58f
             flashEnabled = stored[3].toBoolean()
             flashButton.text = if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF"
             intensityTitle.text = if (currentMode == EnhanceMode.PORTRAIT) "BACKGROUND BLUR" else "VIBRANCE POWER"
@@ -170,7 +170,7 @@ class MainActivity : AppCompatActivity() {
         intensityTitle = label("VIBRANCE POWER",10f,0xFFBFB7DC.toInt(),true); sliderHead.addView(intensityTitle,LinearLayout.LayoutParams(0,-2,1f))
         intensityLabel = label("50%",12f,0xFF00E5FF.toInt(),true); sliderHead.addView(intensityLabel); root.addView(sliderHead)
         val slider = SeekBar(this).apply {
-            max = 100; progress = 50
+            max = 100; progress = 58
             progressTintList = android.content.res.ColorStateList.valueOf(0xFFFF4FA3.toInt())
             thumbTintList = android.content.res.ColorStateList.valueOf(0xFF00E5FF.toInt())
             setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
@@ -388,7 +388,7 @@ class MainActivity : AppCompatActivity() {
     private fun showPhoto(bitmap: Bitmap) { original=bitmap; enhanced=null; photo.setImages(bitmap, null); photo.visibility=View.VISIBLE; preview.visibility=View.GONE; showingOriginal=false; process(bitmap) }
     private fun process(bitmap: Bitmap) {
         status.text="Enhancing colors • "+currentMode.name+"…"
-        val settings=EnhanceSettings(mode=currentMode,intensity=intensity,warmth=0.01f,contrast=1.0f)
+        val settings=EnhanceSettings(mode=currentMode,intensity=intensity,warmth=0.01f,contrast=1.06f)
         if (currentMode == EnhanceMode.PORTRAIT) {
             status.text = "AI subject detection • Portrait blur…"
             PortraitProcessor.enhance(bitmap, settings, intensity,
