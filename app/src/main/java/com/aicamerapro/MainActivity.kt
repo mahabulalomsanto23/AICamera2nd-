@@ -112,32 +112,18 @@ class MainActivity : AppCompatActivity() {
         TextView(this).apply { this.text = text; textSize = size; setTextColor(color); if (bold) typeface = Typeface.create("sans-serif", Typeface.BOLD) }
 
     private fun buildInterface() {
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(10), dp(14), dp(10))
-            background = android.graphics.drawable.ColorDrawable(Color.rgb(8, 12, 22))
-        }
-        val header = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(4), dp(4), dp(4), dp(10))
-        }
-        val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        brand.addView(label("AI CAMERA PRO", 18f, Color.WHITE, true))
-        brand.addView(label("Natural color  •  Offline processing", 10f, 0xFF9EABC4.toInt()))
-        header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
-        val offline = label("● OFFLINE", 10f, 0xFF55E6B0.toInt(), true).apply {
-            setPadding(dp(10), dp(7), dp(10), dp(7))
-            background = gradient(0xFF17352F.toInt(), 0xFF17352F.toInt(), 18)
-        }
-        header.addView(offline)
-        root.addView(header)
+        // Native-camera-inspired layout: edge-to-edge preview with compact floating controls.
+        window.setFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN,
+            android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        window.navigationBarColor = Color.BLACK
 
-        val frame = FrameLayout(this).apply {
-            background = gradient(0xFF172235.toInt(), 0xFF0C111B.toInt(), 22)
-            clipToOutline = true
+        val root = FrameLayout(this).apply {
+            setBackgroundColor(Color.BLACK)
         }
-        preview = PreviewView(this).apply { scaleType = PreviewView.ScaleType.FILL_CENTER }
+        preview = PreviewView(this).apply {
+            scaleType = PreviewView.ScaleType.FILL_CENTER
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+        }
         preview.setOnTouchListener { _, event ->
             if (event.action == android.view.MotionEvent.ACTION_UP) {
                 boundCamera?.let { camera ->
@@ -145,122 +131,170 @@ class MainActivity : AppCompatActivity() {
                     val action = FocusMeteringAction.Builder(point)
                         .setAutoCancelDuration(3, TimeUnit.SECONDS).build()
                     camera.cameraControl.startFocusAndMetering(action)
-                    status.text = "Focus locked • Exposure metering"
+                    status.text = "Focus locked"
                 }
                 true
             } else true
         }
-        photo = CompareView(this).apply { visibility = View.GONE; setBackgroundColor(Color.BLACK) }
-        frame.addView(preview, FrameLayout.LayoutParams(-1, -1))
-        frame.addView(photo, FrameLayout.LayoutParams(-1, -1))
-        val cameraTag = label("LIVE VIEW", 10f, Color.WHITE, true).apply {
-            setPadding(dp(11), dp(7), dp(11), dp(7))
-            background = gradient(0xCC172235.toInt(), 0xCC172235.toInt(), 14)
+        photo = CompareView(this).apply {
+            visibility = View.GONE
+            setBackgroundColor(Color.BLACK)
         }
-        frame.addView(cameraTag, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply {
-            setMargins(dp(12), dp(12), 0, 0)
-        })
-        root.addView(frame, LinearLayout.LayoutParams(-1, 0, 1f).apply {
-            bottomMargin = dp(10)
-        })
+        root.addView(preview, FrameLayout.LayoutParams(-1, -1))
+        root.addView(photo, FrameLayout.LayoutParams(-1, -1))
 
-        status = label("Camera ready • AI AUTO", 11f, 0xFFB7C5DC.toInt()).apply {
+        val topBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(4), 0, dp(4), dp(8))
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+            background = android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(0x99000000.toInt(), Color.TRANSPARENT)
+            )
         }
-        root.addView(status)
-
-        val modeCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(8), dp(7), dp(8), dp(8))
-            background = gradient(0xFF151F31.toInt(), 0xFF111A2A.toInt(), 18)
-        }
-        modeCard.addView(label("SHOOTING MODE", 9f, 0xFF8798B5.toInt(), true).apply {
-            setPadding(dp(4), 0, 0, dp(3))
-        })
-        modeRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        addMode("AI AUTO", EnhanceMode.AI, 0xFF7655E8.toInt())
-        addMode("VIVID", EnhanceMode.VIVID, 0xFFE34D91.toInt())
-        addMode("PORTRAIT", EnhanceMode.PORTRAIT, 0xFF168E9C.toInt())
-        addMode("NORMAL", EnhanceMode.NORMAL, 0xFF53627B.toInt())
-        modeCard.addView(modeRow)
-        root.addView(modeCard)
-        root.addView(space(8))
-
-        val toolsRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        toolsRow.addView(action("↻  FLIP", 0xFF26344B.toInt()) { switchCamera() },
-            LinearLayout.LayoutParams(0, dp(40), 1f).apply { marginEnd = dp(5) })
-        flashButton = action(if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF", 0xFF26344B.toInt()) { toggleFlash() }
-        toolsRow.addView(flashButton, LinearLayout.LayoutParams(0, dp(40), 1f).apply { marginStart = dp(5); marginEnd = dp(5) })
-        toolsRow.addView(action("⚙ SETTINGS", 0xFF34466A.toInt()) { showSaveSettings() },
-            LinearLayout.LayoutParams(0, dp(40), 1f).apply { marginStart = dp(5) })
-        root.addView(toolsRow)
-        root.addView(space(5))
-
-        blurPresetButton = action("BLUR PRESETS", 0xFF24515A.toInt()) { showBlurPresets() }
-        blurPresetButton.visibility = View.GONE
-        root.addView(blurPresetButton, LinearLayout.LayoutParams(-1, dp(34)))
-        root.addView(space(3))
-
-        val intensityCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), dp(7), dp(12), dp(5))
-            background = gradient(0xFF151F31.toInt(), 0xFF111A2A.toInt(), 16)
-        }
-        val sliderHead = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        intensityTitle = label("AI ENHANCEMENT", 10f, 0xFFB8C7DF.toInt(), true)
-        sliderHead.addView(intensityTitle, LinearLayout.LayoutParams(0, -2, 1f))
-        intensityLabel = label("58%", 12f, 0xFF65D9E8.toInt(), true)
-        sliderHead.addView(intensityLabel)
-        intensityCard.addView(sliderHead)
-        val slider = SeekBar(this).apply {
-            max = 100
-            progress = 58
-            progressTintList = android.content.res.ColorStateList.valueOf(0xFF6C70E8.toInt())
-            thumbTintList = android.content.res.ColorStateList.valueOf(0xFF68DDE5.toInt())
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
-                    intensity = p / 100f
-                    intensityLabel.text = "$p%"
-                    if (fromUser) original?.let { process(it) }
+        fun topControl(text: String, description: String, click: () -> Unit): TextView =
+            label(text, 22f, Color.WHITE).apply {
+                contentDescription = description
+                gravity = Gravity.CENTER
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                    setColor(0x33222222)
                 }
-                override fun onStartTrackingTouch(s: SeekBar?) {}
-                override fun onStopTrackingTouch(s: SeekBar?) {}
-            })
-        }
-        intensityCard.addView(slider)
-        root.addView(intensityCard)
-        root.addView(space(8))
+                setOnClickListener { click() }
+            }
+        flashButton = topControl(if (flashEnabled) "ϟ" else "ϟ", "Flash") { toggleFlash() }
+        topBar.addView(flashButton, LinearLayout.LayoutParams(dp(44), dp(44)))
+        val spacer = View(this)
+        topBar.addView(spacer, LinearLayout.LayoutParams(0, 1, 1f))
+        topBar.addView(topControl("⚙", "Camera settings") { showSaveSettings() },
+            LinearLayout.LayoutParams(dp(44), dp(44)))
+        root.addView(topBar, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
 
-        val actions = LinearLayout(this).apply { gravity = Gravity.CENTER; orientation = LinearLayout.HORIZONTAL }
-        actions.addView(action("GALLERY", 0xFF293954.toInt()) { picker.launch("image/*") },
-            LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginEnd = dp(5) })
-        actions.addView(action("●  CAPTURE", 0xFF7353DB.toInt()) { takePhoto() },
-            LinearLayout.LayoutParams(0, dp(54), 1.45f).apply { marginStart = dp(5); marginEnd = dp(5) })
-        actions.addView(action("SAVE", 0xFF087E78.toInt()) { savePhoto() },
-            LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(5) })
-        root.addView(actions)
+        status = label("Ready", 11f, Color.WHITE).apply {
+            gravity = Gravity.CENTER
+            setPadding(dp(10), dp(5), dp(10), dp(5))
+            background = android.graphics.drawable.GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(0x66000000)
+            }
+        }
+        root.addView(status, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
+            topMargin = dp(68)
+        })
+
+        val bottom = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(14), dp(18), dp(14), dp(22))
+            background = android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP,
+                intArrayOf(0xEE000000.toInt(), 0xAA000000.toInt(), Color.TRANSPARENT)
+            )
+        }
+
+        modeRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+        addMode("AI", EnhanceMode.AI, Color.WHITE)
+        addMode("VIVID", EnhanceMode.VIVID, Color.WHITE)
+        addMode("PORTRAIT", EnhanceMode.PORTRAIT, Color.WHITE)
+        addMode("NORMAL", EnhanceMode.NORMAL, Color.WHITE)
+        bottom.addView(modeRow, LinearLayout.LayoutParams(-1, dp(42)))
+        
+        val captureRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, dp(12), 0, 0)
+        }
+        fun roundButton(symbol: String, labelText: String, size: Int, fill: Int, click: () -> Unit): TextView =
+            label(symbol, 25f, Color.WHITE).apply {
+                contentDescription = labelText
+                gravity = Gravity.CENTER
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                    setColor(fill)
+                    setStroke(dp(1), 0x99FFFFFF.toInt())
+                }
+                setOnClickListener { click() }
+            }
+
+        captureRow.addView(roundButton("▧", "Open gallery", 52, 0x55333333) {
+            picker.launch("image/*")
+        }, LinearLayout.LayoutParams(dp(52), dp(52)).apply { marginEnd = dp(38) })
+
+        val shutter = roundButton("", "Take photo", 72, Color.WHITE) { takePhoto() }.apply {
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(Color.WHITE)
+                setStroke(dp(4), 0xFFBDBDBD.toInt())
+            }
+        }
+        captureRow.addView(shutter, LinearLayout.LayoutParams(dp(72), dp(72)))
+
+        captureRow.addView(roundButton("⟳", "Switch camera", 52, 0x55333333) {
+            switchCamera()
+        }, LinearLayout.LayoutParams(dp(52), dp(52)).apply { marginStart = dp(38) })
+        bottom.addView(captureRow)
+
+        blurPresetButton = label("Portrait blur settings", 12f, Color.WHITE).apply {
+            visibility = View.GONE
+            setOnClickListener { showBlurPresets() }
+        }
+        bottom.addView(blurPresetButton)
+        intensityTitle = label("AI ENHANCEMENT", 10f, Color.WHITE, true)
+        intensityLabel = label("58%", 10f, Color.WHITE, true)
+        root.addView(bottom, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
         setContentView(root)
         refreshModes()
     }
-    private fun space(height: Int) = View(this).apply { layoutParams = LinearLayout.LayoutParams(1,dp(height)) }
-    private fun action(text: String,color: Int,click: () -> Unit) = label(text,12f,Color.WHITE,true).apply {
-        gravity=Gravity.CENTER; background=gradient(color,0xFF232546.toInt(),16); setOnClickListener { click() }
+
+    private fun space(height: Int) = View(this).apply {
+        layoutParams = LinearLayout.LayoutParams(1, dp(height))
     }
-    private fun addMode(title: String,mode: EnhanceMode,color: Int) {
-        val view=label(title,9f,Color.WHITE,true).apply {
-            gravity=Gravity.CENTER; setPadding(dp(5),dp(12),dp(5),dp(12)); background=gradient(color,0xFF20233C.toInt(),12)
-            setOnClickListener { currentMode=mode; intensityTitle.text=if(mode==EnhanceMode.PORTRAIT) "BACKGROUND BLUR" else "VIBRANCE POWER"; showingOriginal=false; refreshModes(); original?.let { process(it) } }
+
+    private fun action(text: String, color: Int, click: () -> Unit) =
+        label(text, 12f, Color.WHITE, true).apply {
+            gravity = Gravity.CENTER
+            background = gradient(color, color, 16)
+            setOnClickListener { click() }
         }
-        modeRow.addView(view,LinearLayout.LayoutParams(0,dp(44),1f).apply { setMargins(dp(2),dp(8),dp(2),0) })
+
+    private fun addMode(title: String, mode: EnhanceMode, color: Int) {
+        val view = label(title, 11f, Color.WHITE, true).apply {
+            gravity = Gravity.CENTER
+            setPadding(dp(10), dp(8), dp(10), dp(8))
+            setOnClickListener {
+                currentMode = mode
+                intensityTitle.text = if (mode == EnhanceMode.PORTRAIT) "BACKGROUND BLUR" else "AI ENHANCEMENT"
+                showingOriginal = false
+                refreshModes()
+                original?.let { process(it) }
+            }
+        }
+        modeRow.addView(view, LinearLayout.LayoutParams(0, dp(40), 1f))
     }
+
     private fun refreshModes() {
         for (i in 0 until modeRow.childCount) {
-            val active=(i==0 && currentMode==EnhanceMode.AI)||(i==1 && currentMode==EnhanceMode.VIVID)||(i==2 && currentMode==EnhanceMode.PORTRAIT)||(i==3 && currentMode==EnhanceMode.NORMAL)
-            modeRow.getChildAt(i).alpha=if(active) 1f else 0.48f
+            val selected = (i == 0 && currentMode == EnhanceMode.AI) ||
+                (i == 1 && currentMode == EnhanceMode.VIVID) ||
+                (i == 2 && currentMode == EnhanceMode.PORTRAIT) ||
+                (i == 3 && currentMode == EnhanceMode.NORMAL)
+            val item = modeRow.getChildAt(i) as TextView
+            item.alpha = if (selected) 1f else 0.55f
+            item.setTextColor(if (selected) Color.WHITE else 0xFFBBBBBB.toInt())
+            item.paint.isFakeBoldText = selected
+            item.background = if (selected) android.graphics.drawable.GradientDrawable().apply {
+                setColor(0x33222222)
+                cornerRadius = dp(18).toFloat()
+            } else android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
         }
-        if (::blurPresetButton.isInitialized) blurPresetButton.visibility = if (currentMode == EnhanceMode.PORTRAIT) View.VISIBLE else View.GONE
+        if (::blurPresetButton.isInitialized) {
+            blurPresetButton.visibility = if (currentMode == EnhanceMode.PORTRAIT) View.VISIBLE else View.GONE
+        }
     }
+
     private fun buildCameraAdjustments(root: LinearLayout) {
         fun adjustmentRow(title: String, initial: Int, onChange: (Int) -> Unit) {
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
