@@ -21,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.camera.core.Camera
+import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageCapture
@@ -53,6 +54,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var intensityTitle: TextView
     private lateinit var modeRow: LinearLayout
     private lateinit var blurPresetButton: TextView
+    private lateinit var saveGalleryButton: TextView
     private var original: Bitmap? = null
     private var enhanced: Bitmap? = null
     private var currentMode = EnhanceMode.AI
@@ -117,7 +119,7 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(Color.BLACK)
         }
         preview = PreviewView(this).apply {
-            scaleType = PreviewView.ScaleType.FILL_CENTER
+            scaleType = PreviewView.ScaleType.FIT_CENTER
             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         }
         preview.setOnTouchListener { _, event ->
@@ -136,7 +138,8 @@ class MainActivity : AppCompatActivity() {
             visibility = View.GONE
             setBackgroundColor(Color.BLACK)
         }
-        root.addView(preview, FrameLayout.LayoutParams(-1, -1))
+        val previewHeight = (resources.displayMetrics.widthPixels * 3f / 4f).toInt()
+        root.addView(preview, FrameLayout.LayoutParams(-1, previewHeight, Gravity.CENTER))
         root.addView(photo, FrameLayout.LayoutParams(-1, -1))
 
         val topBar = LinearLayout(this).apply {
@@ -239,6 +242,16 @@ class MainActivity : AppCompatActivity() {
         intensityTitle = label("AI ENHANCEMENT", 10f, Color.WHITE, true)
         intensityLabel = label("58%", 10f, Color.WHITE, true)
         root.addView(bottom, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
+        saveGalleryButton = label("SAVE ENHANCED PHOTO", 14f, Color.WHITE, true).apply {
+            gravity = Gravity.CENTER
+            setPadding(dp(28), dp(14), dp(28), dp(14))
+            background = gradient(0xFF00A884.toInt(), 0xFF007E69.toInt(), 28)
+            visibility = View.GONE
+            setOnClickListener { savePhoto() }
+        }
+        root.addView(saveGalleryButton, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
+            bottomMargin = dp(154)
+        })
         setContentView(root)
         refreshModes()
     }
@@ -356,8 +369,9 @@ class MainActivity : AppCompatActivity() {
     private fun bindCamera() {
         val provider = cameraProvider ?: return
         val selector = CameraSelector.Builder().requireLensFacing(lensFacing).build()
-        val cameraPreview = Preview.Builder().build().also { it.setSurfaceProvider(preview.surfaceProvider) }
+        val cameraPreview = Preview.Builder().setTargetAspectRatio(AspectRatio.RATIO_4_3).build().also { it.setSurfaceProvider(preview.surfaceProvider) }
         capture = ImageCapture.Builder()
+            .setTargetAspectRatio(AspectRatio.RATIO_4_3)
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
             .setFlashMode(ImageCapture.FLASH_MODE_OFF)
             .build()
@@ -394,6 +408,7 @@ class MainActivity : AppCompatActivity() {
                             original = bitmap
                             enhanced = null
                             autoSaveAfterCapture = true
+                            saveGalleryButton.visibility = View.GONE
                             photo.visibility = View.GONE
                             preview.visibility = View.VISIBLE
                             showingOriginal = false
@@ -465,7 +480,7 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread { if(bitmap!=null) { sourceExifUri = uri; sourceExifFile = null; showPhoto(bitmap) } else status.text="Could not open this photo" }
         }
     }
-    private fun showPhoto(bitmap: Bitmap) { original=bitmap; enhanced=null; photo.setImages(bitmap, null); photo.visibility=View.VISIBLE; preview.visibility=View.GONE; showingOriginal=false; process(bitmap) }
+    private fun showPhoto(bitmap: Bitmap) { original=bitmap; enhanced=null; photo.setImages(bitmap, null); photo.visibility=View.VISIBLE; preview.visibility=View.GONE; saveGalleryButton.visibility=View.GONE; showingOriginal=false; process(bitmap) }
     private fun process(bitmap: Bitmap) {
         status.text="Enhancing colors • "+currentMode.name+"…"
         val settings=EnhanceSettings(mode=currentMode,intensity=intensity,warmth=0.01f,contrast=1.06f)
@@ -522,6 +537,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             photo.visibility = View.VISIBLE
             preview.visibility = View.GONE
+            saveGalleryButton.visibility = if (sourceExifUri != null) View.VISIBLE else View.GONE
             status.text = message
         }
     }
@@ -651,6 +667,7 @@ class MainActivity : AppCompatActivity() {
                 writeBitmapToGallery(originalBitmap, "AICameraPro_${stamp}_Original.jpg")
             } else true
             runOnUiThread {
+                if (sourceExifUri != null && enhancedOk) saveGalleryButton.visibility = View.GONE
                 status.text = when {
                     enhancedOk && originalOk && selectedMode == "both" -> "Original + Enhanced saved • Pictures / AI Camera Pro"
                     enhancedOk && originalOk -> "Enhanced photo saved • Pictures / AI Camera Pro"
