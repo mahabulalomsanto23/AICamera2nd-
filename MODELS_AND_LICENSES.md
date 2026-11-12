@@ -10,6 +10,13 @@ Google ML Kit SDK terms and applicable Google developer terms apply. The selfie-
 - https://developers.google.com/ml-kit/vision/selfie-segmentation/android
 - https://developers.google.com/ml-kit/tips/installation-paths
 
+## Daylight color-enhancement model evaluation
+
+- **MIRNet-v2 FiveK contrast-enhancement checkpoint** is the leading neural-model candidate for this app's daylight/photo-color goal. The official project provides a separate `enhancement_fivek.pth` checkpoint and a FiveK training configuration; the low-light `enhancement_lol.pth` checkpoint is not appropriate for this use case.
+- The FiveK checkpoint is not yet bundled or called by the Android app. It is a PyTorch checkpoint, so it must first be converted and checked for supported operators, output color fidelity, APK/model size, peak RAM, and inference time on Snapdragon 865. It must not be described as integrated until those checks pass.
+- MIRNet-v2 is a restoration/enhancement network, not a face-identity or clothing-color lock. Any neural output must be tested for skin-tone and garment-color drift and conservatively blended if needed.
+- The current shipped color pass remains deterministic offline Kotlin processing; it now prioritizes vibrance over sharpening/contrast.
+
 ## Other components
 
 - CameraX and AndroidX dependencies are distributed under their respective open-source licenses.
