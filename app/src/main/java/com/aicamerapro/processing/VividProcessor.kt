@@ -54,7 +54,7 @@ object VividProcessor {
         } else 1.0f
         // AI is adaptive and restrained; VIVID keeps its stronger established color profile.
         val modeBoost = if (settings.mode == EnhanceMode.VIVID) 1.38f else 1.0f
-        val saturationBoost = (1f + intensity * if (settings.mode == EnhanceMode.AI) 0.76f else 0.58f) * adaptive * modeBoost
+        val saturationBoost = (1f + intensity * if (settings.mode == EnhanceMode.AI) 0.92f else 0.58f) * adaptive * modeBoost
         // Ambiance adds a restrained midtone lift/depth without changing exposure.
         val ambianceBase = 1f + ((settings.contrast.coerceIn(0.96f, 1.12f) - 1f) * 0.55f)
         // Separate iPhone-inspired Vivid rendering: richer color and a touch more tonal depth.
