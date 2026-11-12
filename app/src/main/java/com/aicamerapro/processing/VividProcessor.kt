@@ -5,105 +5,171 @@ import kotlin.math.max
 import kotlin.math.min
 
 enum class EnhanceMode { NORMAL, VIVID, AI, PORTRAIT }
-data class EnhanceSettings(val mode: EnhanceMode = EnhanceMode.AI, val intensity: Float = 0.78f, val warmth: Float = 0.08f, val contrast: Float = 1.12f)
+data class EnhanceSettings(
+    val mode: EnhanceMode = EnhanceMode.AI,
+    val intensity: Float = 0.50f,
+    val warmth: Float = 0.02f,
+    val contrast: Float = 1.0f,
+    val sceneProfile: String = "GENERAL"
+)
 
 /**
- * Offline adaptive color pipeline. Uses scanline buffers to avoid multiple full-frame
- * IntArray/FloatArray allocations on high-resolution Snapdragon camera images.
+ * Conservative daylight-first color finishing.
+ *
+ * This is deterministic on-device image processing, not a generative AI model.
+ * It deliberately avoids global exposure gain and strong contrast changes. Chroma
+ * is increased around the original luminance so bright skies and skin highlights
+ * are less likely to clip. The source bitmap is never modified.
  */
 object VividProcessor {
     fun enhance(source: Bitmap, settings: EnhanceSettings): Bitmap {
-        if (settings.mode == EnhanceMode.NORMAL) return source.copy(Bitmap.Config.ARGB_8888, false)
-        val w = source.width
-        val h = source.height
-        if (w < 2 || h < 2) return source.copy(Bitmap.Config.ARGB_8888, false)
+        if (settings.mode == EnhanceMode.NORMAL) {
+            return source.copy(Bitmap.Config.ARGB_8888, false)
+        }
+        val width = source.width
+        val height = source.height
+        if (width < 2 || height < 2) return source.copy(Bitmap.Config.ARGB_8888, false)
 
-        // Estimate global exposure and saturation from a bounded sample.
-        val sampleCount = 12000
-        val step = max(1, (w.toLong() * h / sampleCount).toInt())
-        var lumSum = 0.0
-        var satSum = 0.0
+        val intensity = settings.intensity.coerceIn(0f, 1f)
+        val sampleCount = 10000
+        val step = max(1, (width.toLong() * height / sampleCount).toInt())
+        var saturationSum = 0.0
         var samples = 0
         var index = 0L
-        val total = w.toLong() * h
+        val total = width.toLong() * height
         while (index < total) {
-            val x = (index % w).toInt()
-            val y = (index / w).toInt()
-            val color = source.getPixel(x, y)
+            val color = source.getPixel((index % width).toInt(), (index / width).toInt())
             val r = (color shr 16 and 255) / 255f
             val g = (color shr 8 and 255) / 255f
             val b = (color and 255) / 255f
             val high = max(r, max(g, b))
             val low = min(r, min(g, b))
-            lumSum += 0.2126 * r + 0.7152 * g + 0.0722 * b
-            satSum += if (high <= 0f) 0.0 else ((high - low) / high).toDouble()
+            saturationSum += if (high < 0.0001f) 0.0 else ((high - low) / high).toDouble()
             samples++
             index += step.toLong()
         }
-        val averageLuma = (lumSum / max(1, samples)).toFloat()
-        val averageSaturation = (satSum / max(1, samples)).toFloat()
-        val adaptiveBoost = if (settings.mode == EnhanceMode.AI) {
-            (1.04f + (0.42f - averageSaturation).coerceIn(0f, 0.42f) * 0.32f).coerceIn(1.04f, 1.18f)
-        } else 1f
-        val exposureGain = (1f + (0.46f - averageLuma) * 0.28f).coerceIn(0.90f, 1.10f)
-        val vividBoost = if (settings.mode == EnhanceMode.VIVID) 1.18f else 1f
-        val vibrance = (1f + settings.intensity.coerceIn(0f, 1f) * 0.62f) * adaptiveBoost * vividBoost
-        val contrast = settings.contrast.coerceIn(0.95f, 1.35f) + if (settings.mode == EnhanceMode.AI) 0.015f else 0f
-        val warmth = settings.warmth * settings.intensity.coerceIn(0f, 1f)
+        val averageSaturation = (saturationSum / max(1, samples)).toFloat()
+        val adaptive = if (settings.mode == EnhanceMode.AI) {
+            1.0f + (0.42f - averageSaturation).coerceIn(0f, 0.42f) * 0.34f
+        } else 1.0f
+        // AI is adaptive and restrained; VIVID keeps its stronger established color profile.
+        val modeBoost = if (settings.mode == EnhanceMode.VIVID) 1.38f else 1.0f
+        val saturationBoost = (1f + intensity * if (settings.mode == EnhanceMode.AI) 0.92f else 0.58f) * adaptive * modeBoost
+        // Ambiance adds a restrained midtone lift/depth without changing exposure.
+        val ambianceBase = 1f + ((settings.contrast.coerceIn(0.96f, 1.12f) - 1f) * 0.55f)
+        // Separate iPhone-inspired Vivid rendering: richer color and a touch more tonal depth.
+        val gentleContrast = ambianceBase * if (settings.mode == EnhanceMode.VIVID) 1.035f else 1f
+        val warmth = settings.warmth.coerceIn(-0.04f, 0.04f) * intensity
 
-        val output = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-        val previous = IntArray(w)
-        val current = IntArray(w)
-        val next = IntArray(w)
-        val outputRow = IntArray(w)
-        for (y in 0 until h) {
-            val y0 = max(0, y - 1)
-            val y1 = min(h - 1, y + 1)
-            source.getPixels(previous, 0, w, 0, y0, w, 1)
-            source.getPixels(current, 0, w, 0, y, w, 1)
-            source.getPixels(next, 0, w, 0, y1, w, 1)
-            for (x in 0 until w) {
-                val color = current[x]
-                var r = (color shr 16 and 255) / 255f
-                var g = (color shr 8 and 255) / 255f
-                var b = (color and 255) / 255f
-                val luma = 0.2126f * r + 0.7152f * g + 0.0722f * b
-                val high = max(r, max(g, b))
-                val low = min(r, min(g, b))
-                val saturation = if (high <= 0f) 0f else (high - low) / high
-                val vibranceFactor = 1f + (1f - saturation) * (vibrance - 1f)
-
-                val leftColor = current[max(0, x - 1)]
-                val rightColor = current[min(w - 1, x + 1)]
-                val upColor = previous[x]
-                val downColor = next[x]
-                fun luminance(c: Int) =
-                    0.2126f * ((c shr 16 and 255) / 255f) +
-                    0.7152f * ((c shr 8 and 255) / 255f) +
-                    0.0722f * ((c and 255) / 255f)
-                val localAverage = (luminance(leftColor) + luminance(rightColor) +
-                    luminance(upColor) + luminance(downColor)) * 0.25f
-                val detail = (luma - localAverage) * 0.12f * settings.intensity.coerceIn(0f, 1f)
-                val shadowLift = (0.30f - luma).coerceAtLeast(0f) * 0.035f * settings.intensity
-
-                val midpoint = 0.46f
-                r = (midpoint + (r - midpoint) * contrast) * vibranceFactor * exposureGain + warmth * 0.045f + detail + shadowLift
-                g = (midpoint + (g - midpoint) * contrast) * vibranceFactor * exposureGain + detail + shadowLift
-                b = (midpoint + (b - midpoint) * contrast) * vibranceFactor * exposureGain - warmth * 0.035f + detail + shadowLift
-                fun rollOff(value: Float): Float {
-                    val v = value.coerceAtLeast(0f)
-                    return if (v > 0.88f) 0.88f + (v - 0.88f) * 0.55f else v
-                }
-                r = rollOff(r).coerceIn(0f, 1f)
-                g = rollOff(g).coerceIn(0f, 1f)
-                b = rollOff(b).coerceIn(0f, 1f)
-                outputRow[x] = (color and -0x1000000) or
-                    ((r * 255f).toInt().coerceIn(0, 255) shl 16) or
-                    ((g * 255f).toInt().coerceIn(0, 255) shl 8) or
-                    (b * 255f).toInt().coerceIn(0, 255)
+        val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        // Three scanlines are enough for a low-memory, edge-aware luminance sharpen.
+        val previous = IntArray(width)
+        val row = IntArray(width)
+        val next = IntArray(width)
+        val outputRow = IntArray(width)
+        fun readRow(target: IntArray, y: Int) = source.getPixels(target, 0, width, 0, y.coerceIn(0, height - 1), width, 1)
+        fun lumaOf(pixel: Int): Float {
+            val rr = (pixel shr 16 and 255) / 255f
+            val gg = (pixel shr 8 and 255) / 255f
+            val bb = (pixel and 255) / 255f
+            return 0.2126f * rr + 0.7152f * gg + 0.0722f * bb
+        }
+        readRow(previous, 0)
+        readRow(row, 0)
+        readRow(next, 1)
+        for (y in 0 until height) {
+            if (y > 0) {
+                System.arraycopy(row, 0, previous, 0, width)
+                System.arraycopy(next, 0, row, 0, width)
+                readRow(next, y + 1)
             }
-            output.setPixels(outputRow, 0, w, 0, y, w, 1)
+            for (x in 0 until width) {
+                val color = row[x]
+                val originalR = (color shr 16 and 255) / 255f
+                val originalG = (color shr 8 and 255) / 255f
+                val originalB = (color and 255) / 255f
+                val luma = 0.2126f * originalR + 0.7152f * originalG + 0.0722f * originalB
+
+                // Vibrance: boost muted colors more than colors already near saturation.
+                val high = max(originalR, max(originalG, originalB))
+                val low = min(originalR, min(originalG, originalB))
+                val sourceSat = if (high < 0.0001f) 0f else (high - low) / high
+                val vibranceFactor = 1f + (saturationBoost - 1f) * (1f - sourceSat * 0.42f)
+
+                // Protect daylight highlights and likely skin hues from strong color shifts.
+                val hue = rgbHueDegrees(originalR, originalG, originalB)
+                val likelySkin = hue in 0f..52f && sourceSat in 0.10f..0.62f && luma in 0.18f..0.88f
+                val skinProtection = if (likelySkin) {
+                    if (settings.mode == EnhanceMode.VIVID) 0.48f else 0.42f
+                } else 1f
+                val highlightProtection = 1f - ((luma - 0.76f) / 0.24f).coerceIn(0f, 1f) *
+                    if (settings.mode == EnhanceMode.VIVID) 0.40f else 0.48f
+                val profileHueBoost = if (settings.mode == EnhanceMode.AI) {
+                    when (settings.sceneProfile) {
+                        "OUTDOOR", "NATURE" -> when { hue in 75f..165f -> 1.22f; hue in 175f..255f -> 1.12f; else -> 1f }
+                        "FOOD" -> if (hue in 5f..55f) 1.16f else 1f
+                        "FLOWERS" -> if (hue in 265f..360f) 1.18f else 1f
+                        "SUNSET" -> if (hue in 0f..48f) 1.12f else 1f
+                        "ARCHITECTURE" -> if (sourceSat < 0.22f) 1.08f else 1f
+                        else -> 1f
+                    }
+                } else 1f
+                val sat = 1f + (vibranceFactor - 1f) * highlightProtection * skinProtection * profileHueBoost
+                var r = luma + (originalR - luma) * sat
+                var g = luma + (originalG - luma) * sat
+                var b = luma + (originalB - luma) * sat
+
+                // Scene-aware AI tone curve: gently opens shadows, protects bright skies and keeps midtones natural.
+                val aiShadowLift = if (settings.mode == EnhanceMode.AI) {
+                    (1f - luma).coerceIn(0f, 1f).let { it * it } * 0.045f
+                } else 0f
+                val aiHighlightRollOff = if (settings.mode == EnhanceMode.AI) {
+                    ((luma - 0.70f) / 0.30f).coerceIn(0f, 1f).let { it * it } * 0.050f
+                } else 0f
+                val toneShift = aiShadowLift - aiHighlightRollOff
+                r = 0.5f + (r - 0.5f) * gentleContrast + toneShift + warmth * 0.18f
+                g = 0.5f + (g - 0.5f) * gentleContrast + toneShift
+                b = 0.5f + (b - 0.5f) * gentleContrast + toneShift - warmth * 0.12f
+
+                // AI-only detail recovery: unsharp-mask luminance, not RGB channels.
+                // This keeps color/skin tones stable and suppresses sharpening halos on flat areas.
+                if (settings.mode == EnhanceMode.AI) {
+                    val left = (x - 1).coerceAtLeast(0)
+                    val right = (x + 1).coerceAtMost(width - 1)
+                    val topLeft = lumaOf(previous[left]); val top = lumaOf(previous[x]); val topRight = lumaOf(previous[right])
+                    val midLeft = lumaOf(row[left]); val midRight = lumaOf(row[right])
+                    val bottomLeft = lumaOf(next[left]); val bottom = lumaOf(next[x]); val bottomRight = lumaOf(next[right])
+                    val soft = (topLeft + 2f * top + topRight + 2f * midLeft + 4f * luma + 2f * midRight +
+                        bottomLeft + 2f * bottom + bottomRight) / 16f
+                    val detail = luma - soft
+                    val edgeGate = ((kotlin.math.abs(detail) - 0.0035f) / 0.035f).coerceIn(0f, 1f)
+                    val faceSafe = if (likelySkin) 0.58f else 1f
+                    val detailBoost = detail * 0.72f * edgeGate * faceSafe
+                    r += detailBoost
+                    g += detailBoost
+                    b += detailBoost
+                }
+
+                outputRow[x] = (color and -0x1000000) or
+                    ((r.coerceIn(0f, 1f) * 255f).toInt() shl 16) or
+                    ((g.coerceIn(0f, 1f) * 255f).toInt() shl 8) or
+                    (b.coerceIn(0f, 1f) * 255f).toInt()
+            }
+            output.setPixels(outputRow, 0, width, 0, y, width, 1)
         }
         return output
+    }
+
+    private fun rgbHueDegrees(r: Float, g: Float, b: Float): Float {
+        val high = max(r, max(g, b))
+        val low = min(r, min(g, b))
+        val delta = high - low
+        if (delta < 0.00001f) return 0f
+        val hue = when (high) {
+            r -> 60f * (((g - b) / delta) % 6f)
+            g -> 60f * (((b - r) / delta) + 2f)
+            else -> 60f * (((r - g) / delta) + 4f)
+        }
+        return if (hue < 0f) hue + 360f else hue
     }
 }

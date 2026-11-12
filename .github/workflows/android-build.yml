@@ -2,6 +2,8 @@ name: Build AI Camera Pro APK
 
 on:
   push:
+    branches: [main, daylight-natural-color]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -47,35 +49,40 @@ jobs:
           APK=$(find app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)
           test -n "$APK"
           mkdir -p dist
-          cp "$APK" dist/AI-Camera-Pro-OnePlus8.apk
+          BUILD_TIME=$(TZ=Asia/Dhaka date +'%Y%m%d-%H%M%S-BD')
+          APK_NAME="AI-Camera-Pro-OnePlus8-${BUILD_TIME}.apk"
+          cp "$APK" "dist/$APK_NAME"
           ls -lh dist
-          echo "path=dist/AI-Camera-Pro-OnePlus8.apk" >> "$GITHUB_OUTPUT"
+          echo "path=dist/$APK_NAME" >> "$GITHUB_OUTPUT"
+          echo "name=$APK_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Show APK signature (should be identical on every build)
         continue-on-error: true
         shell: bash
         run: |
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
-          "$BT/apksigner" verify --print-certs dist/AI-Camera-Pro-OnePlus8.apk
+          "$BT/apksigner" verify --print-certs "${{ steps.apk.outputs.path }}"
 
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AI-Camera-Pro-OnePlus8-APK
-          path: dist/AI-Camera-Pro-OnePlus8.apk
+          name: AI-Camera-Pro-OnePlus8-${{ steps.apk.outputs.name }}
+          path: ${{ steps.apk.outputs.path }}
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish APK as GitHub Release "latest"
-        continue-on-error: true
+      - name: Publish direct APK download on GitHub Release
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
-          gh release delete latest --yes --cleanup-tag || true
+          if gh release view latest >/dev/null 2>&1; then
+            gh release delete latest --yes --cleanup-tag
+          fi
           gh release create latest "${{ steps.apk.outputs.path }}" \
             --target "$GITHUB_SHA" \
             --prerelease \
             --title "AI Camera Pro - latest build" \
-            --notes "Direct-download APK for OnePlus 8 (Android 13). Download AI-Camera-Pro-OnePlus8.apk and install."
+            --notes "Direct APK download: ${{ steps.apk.outputs.name }}. Build timestamp is Bangladesh time (Asia/Dhaka, UTC+6). Install on OnePlus 8 (Android 13)."
