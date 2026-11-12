@@ -388,7 +388,7 @@ class MainActivity : AppCompatActivity() {
     private fun showPhoto(bitmap: Bitmap) { original=bitmap; enhanced=null; photo.setImages(bitmap, null); photo.visibility=View.VISIBLE; preview.visibility=View.GONE; showingOriginal=false; process(bitmap) }
     private fun process(bitmap: Bitmap) {
         status.text="Enhancing colors • "+currentMode.name+"…"
-        val settings=EnhanceSettings(mode=currentMode,intensity=intensity,warmth=0.10f,contrast=1.10f+intensity*0.12f)
+        val settings=EnhanceSettings(mode=currentMode,intensity=intensity,warmth=0.01f,contrast=1.0f)
         if (currentMode == EnhanceMode.PORTRAIT) {
             status.text = "AI subject detection • Portrait blur…"
             PortraitProcessor.enhance(bitmap, settings, intensity,
