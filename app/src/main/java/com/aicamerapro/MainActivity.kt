@@ -113,84 +113,136 @@ class MainActivity : AppCompatActivity() {
 
     private fun buildInterface() {
         val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(dp(14), dp(8), dp(14), dp(8))
-            background = android.graphics.drawable.ColorDrawable(Color.rgb(12, 16, 28))
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            background = android.graphics.drawable.ColorDrawable(Color.rgb(8, 12, 22))
         }
-        val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(4), dp(4), dp(4), dp(10))
+        }
         val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        brand.addView(label("AI CAMERA", 19f, Color.WHITE, true))
-        
+        brand.addView(label("AI CAMERA PRO", 18f, Color.WHITE, true))
+        brand.addView(label("Natural color  •  Offline processing", 10f, 0xFF9EABC4.toInt()))
         header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
-        header.addView(label("OFFLINE", 10f, 0xFF4CFFC1.toInt(), true))
-        root.addView(header); root.addView(space(8))
-        val frame = FrameLayout(this).apply { background = gradient(0xFF172235.toInt(), 0xFF0C111B.toInt(), 18); clipToOutline = true }
+        val offline = label("● OFFLINE", 10f, 0xFF55E6B0.toInt(), true).apply {
+            setPadding(dp(10), dp(7), dp(10), dp(7))
+            background = gradient(0xFF17352F.toInt(), 0xFF17352F.toInt(), 18)
+        }
+        header.addView(offline)
+        root.addView(header)
+
+        val frame = FrameLayout(this).apply {
+            background = gradient(0xFF172235.toInt(), 0xFF0C111B.toInt(), 22)
+            clipToOutline = true
+        }
         preview = PreviewView(this).apply { scaleType = PreviewView.ScaleType.FILL_CENTER }
         preview.setOnTouchListener { _, event ->
             if (event.action == android.view.MotionEvent.ACTION_UP) {
-                val camera = boundCamera
-                if (camera != null) {
+                boundCamera?.let { camera ->
                     val point = preview.meteringPointFactory.createPoint(event.x, event.y)
                     val action = FocusMeteringAction.Builder(point)
-                        .setAutoCancelDuration(3, TimeUnit.SECONDS)
-                        .build()
+                        .setAutoCancelDuration(3, TimeUnit.SECONDS).build()
                     camera.cameraControl.startFocusAndMetering(action)
-                    status.text = "Tap-to-focus • Exposure metering"
+                    status.text = "Focus locked • Exposure metering"
                 }
                 true
             } else true
         }
         photo = CompareView(this).apply { visibility = View.GONE; setBackgroundColor(Color.BLACK) }
-        frame.addView(preview, FrameLayout.LayoutParams(-1,-1))
-        frame.addView(photo, FrameLayout.LayoutParams(-1,-1))
-        val hint = label("CAMERA", 10f, Color.WHITE, true).apply {
-            setPadding(dp(10),dp(6),dp(10),dp(6)); background = gradient(0xCC26364F.toInt(),0xCC26364F.toInt(),12)
+        frame.addView(preview, FrameLayout.LayoutParams(-1, -1))
+        frame.addView(photo, FrameLayout.LayoutParams(-1, -1))
+        val cameraTag = label("LIVE VIEW", 10f, Color.WHITE, true).apply {
+            setPadding(dp(11), dp(7), dp(11), dp(7))
+            background = gradient(0xCC172235.toInt(), 0xCC172235.toInt(), 14)
         }
-        frame.addView(hint, FrameLayout.LayoutParams(-2,-2,Gravity.TOP or Gravity.START).apply { setMargins(dp(12),dp(12),0,0) })
-        root.addView(frame, LinearLayout.LayoutParams(-1,0,1f)); root.addView(space(7))
-        status = label("Ready • AI mode",11f,0xFFBFB7DC.toInt()); root.addView(status); root.addView(space(8))
-        val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6),dp(4),dp(6),dp(4)); background = gradient(0xFF182235.toInt(),0xFF182235.toInt(),14) }
-        
+        frame.addView(cameraTag, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply {
+            setMargins(dp(12), dp(12), 0, 0)
+        })
+        root.addView(frame, LinearLayout.LayoutParams(-1, 0, 1f).apply {
+            bottomMargin = dp(10)
+        })
+
+        status = label("Camera ready • AI AUTO", 11f, 0xFFB7C5DC.toInt()).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(4), 0, dp(4), dp(8))
+        }
+        root.addView(status)
+
+        val modeCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(8), dp(7), dp(8), dp(8))
+            background = gradient(0xFF151F31.toInt(), 0xFF111A2A.toInt(), 18)
+        }
+        modeCard.addView(label("SHOOTING MODE", 9f, 0xFF8798B5.toInt(), true).apply {
+            setPadding(dp(4), 0, 0, dp(3))
+        })
         modeRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        addMode("AI AUTO",EnhanceMode.AI,0xFF8B5CF6.toInt())
-        addMode("VIVID",EnhanceMode.VIVID,0xFFFF4FA3.toInt())
-        addMode("PORTRAIT",EnhanceMode.PORTRAIT,0xFF00BCD4.toInt())
-        addMode("NORMAL",EnhanceMode.NORMAL,0xFF65708A.toInt())
-        card.addView(modeRow); root.addView(card); root.addView(space(8))
-        val cameraControls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        cameraControls.addView(action("↻  FLIP CAMERA", 0xFF35415F.toInt()) { switchCamera() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginEnd = dp(5) })
-        flashButton = action(if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF", 0xFF35415F.toInt()) { toggleFlash() }
-        cameraControls.addView(flashButton, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5); marginEnd = dp(5) })
-        cameraControls.addView(action("⚙ SETTINGS", 0xFF5A347F.toInt()) { showSaveSettings() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5) })
-        root.addView(cameraControls); root.addView(space(5))
-        blurPresetButton = action("BLUR STRENGTH",0xFF663D9B.toInt()) { showBlurPresets() }; blurPresetButton.visibility = View.GONE
-        root.addView(blurPresetButton, LinearLayout.LayoutParams(-1,dp(36)))
+        addMode("AI AUTO", EnhanceMode.AI, 0xFF7655E8.toInt())
+        addMode("VIVID", EnhanceMode.VIVID, 0xFFE34D91.toInt())
+        addMode("PORTRAIT", EnhanceMode.PORTRAIT, 0xFF168E9C.toInt())
+        addMode("NORMAL", EnhanceMode.NORMAL, 0xFF53627B.toInt())
+        modeCard.addView(modeRow)
+        root.addView(modeCard)
+        root.addView(space(8))
+
+        val toolsRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        toolsRow.addView(action("↻  FLIP", 0xFF26344B.toInt()) { switchCamera() },
+            LinearLayout.LayoutParams(0, dp(40), 1f).apply { marginEnd = dp(5) })
+        flashButton = action(if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF", 0xFF26344B.toInt()) { toggleFlash() }
+        toolsRow.addView(flashButton, LinearLayout.LayoutParams(0, dp(40), 1f).apply { marginStart = dp(5); marginEnd = dp(5) })
+        toolsRow.addView(action("⚙ SETTINGS", 0xFF34466A.toInt()) { showSaveSettings() },
+            LinearLayout.LayoutParams(0, dp(40), 1f).apply { marginStart = dp(5) })
+        root.addView(toolsRow)
+        root.addView(space(5))
+
+        blurPresetButton = action("BLUR PRESETS", 0xFF24515A.toInt()) { showBlurPresets() }
+        blurPresetButton.visibility = View.GONE
+        root.addView(blurPresetButton, LinearLayout.LayoutParams(-1, dp(34)))
         root.addView(space(3))
-        buildCameraAdjustments(root)
+
+        val intensityCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), dp(7), dp(12), dp(5))
+            background = gradient(0xFF151F31.toInt(), 0xFF111A2A.toInt(), 16)
+        }
         val sliderHead = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        intensityTitle = label("VIBRANCE POWER",10f,0xFFBFB7DC.toInt(),true); sliderHead.addView(intensityTitle,LinearLayout.LayoutParams(0,-2,1f))
-        intensityLabel = label("50%",12f,0xFF00E5FF.toInt(),true); sliderHead.addView(intensityLabel); root.addView(sliderHead)
+        intensityTitle = label("AI ENHANCEMENT", 10f, 0xFFB8C7DF.toInt(), true)
+        sliderHead.addView(intensityTitle, LinearLayout.LayoutParams(0, -2, 1f))
+        intensityLabel = label("58%", 12f, 0xFF65D9E8.toInt(), true)
+        sliderHead.addView(intensityLabel)
+        intensityCard.addView(sliderHead)
         val slider = SeekBar(this).apply {
-            max = 100; progress = 58
-            progressTintList = android.content.res.ColorStateList.valueOf(0xFFFF4FA3.toInt())
-            thumbTintList = android.content.res.ColorStateList.valueOf(0xFF00E5FF.toInt())
-            setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
+            max = 100
+            progress = 58
+            progressTintList = android.content.res.ColorStateList.valueOf(0xFF6C70E8.toInt())
+            thumbTintList = android.content.res.ColorStateList.valueOf(0xFF68DDE5.toInt())
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
-                    intensity = p / 100f; intensityLabel.text = "$p%"
+                    intensity = p / 100f
+                    intensityLabel.text = "$p%"
                     if (fromUser) original?.let { process(it) }
                 }
                 override fun onStartTrackingTouch(s: SeekBar?) {}
                 override fun onStopTrackingTouch(s: SeekBar?) {}
             })
         }
-        root.addView(slider); root.addView(space(2))
-        val actions = LinearLayout(this).apply { gravity = Gravity.CENTER; orientation = LinearLayout.HORIZONTAL }
-        actions.addView(action("GALLERY",0xFF303B5B.toInt()) { picker.launch("image/*") },LinearLayout.LayoutParams(0,dp(48),1f).apply { marginEnd=dp(6) })
-        actions.addView(action("●  CAPTURE",0xFF8B35E8.toInt()) { takePhoto() },LinearLayout.LayoutParams(0,dp(54),1.35f).apply { marginStart=dp(6); marginEnd=dp(6) })
-        actions.addView(action("SAVE",0xFF007F83.toInt()) { savePhoto() },LinearLayout.LayoutParams(0,dp(48),1f).apply { marginStart=dp(6) })
-        root.addView(actions); root.addView(space(2))
-        setContentView(root); refreshModes()
-    }
+        intensityCard.addView(slider)
+        root.addView(intensityCard)
+        root.addView(space(8))
 
+        val actions = LinearLayout(this).apply { gravity = Gravity.CENTER; orientation = LinearLayout.HORIZONTAL }
+        actions.addView(action("GALLERY", 0xFF293954.toInt()) { picker.launch("image/*") },
+            LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginEnd = dp(5) })
+        actions.addView(action("●  CAPTURE", 0xFF7353DB.toInt()) { takePhoto() },
+            LinearLayout.LayoutParams(0, dp(54), 1.45f).apply { marginStart = dp(5); marginEnd = dp(5) })
+        actions.addView(action("SAVE", 0xFF087E78.toInt()) { savePhoto() },
+            LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(5) })
+        root.addView(actions)
+        setContentView(root)
+        refreshModes()
+    }
     private fun space(height: Int) = View(this).apply { layoutParams = LinearLayout.LayoutParams(1,dp(height)) }
     private fun action(text: String,color: Int,click: () -> Unit) = label(text,12f,Color.WHITE,true).apply {
         gravity=Gravity.CENTER; background=gradient(color,0xFF232546.toInt(),16); setOnClickListener { click() }
