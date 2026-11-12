@@ -57,7 +57,7 @@ object SceneAnalyzer {
     }
 
     fun tune(settings: EnhanceSettings, profile: Profile): EnhanceSettings = when (profile) {
-        Profile.PEOPLE -> settings.copy(intensity = settings.intensity * 0.68f, warmth = 0f, contrast = 1.0f)
+        Profile.PEOPLE -> settings.copy(intensity = settings.intensity * 0.82f, warmth = 0f, contrast = 1.0f)
         Profile.OUTDOOR, Profile.NATURE -> settings.copy(intensity = (settings.intensity * 0.92f).coerceAtMost(1f), warmth = 0f, contrast = 1.0f)
         Profile.SUNSET -> settings.copy(intensity = (settings.intensity * 0.82f).coerceAtMost(1f), warmth = 0.015f, contrast = 1.0f)
         Profile.NIGHT -> settings.copy(intensity = settings.intensity * 0.55f, contrast = 1.0f, warmth = 0f)
