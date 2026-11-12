@@ -55,7 +55,8 @@ object VividProcessor {
         // VIVID+ is intentionally stronger while retaining highlight/skin guards.
         val modeBoost = if (settings.mode == EnhanceMode.VIVID) 1.22f else 1.0f
         val saturationBoost = (1f + intensity * 0.58f) * adaptive * modeBoost
-        val gentleContrast = 1f + ((settings.contrast.coerceIn(0.96f, 1.08f) - 1f) * 0.18f)
+        // Ambiance adds a restrained midtone lift/depth without changing exposure.
+        val gentleContrast = 1f + ((settings.contrast.coerceIn(0.96f, 1.12f) - 1f) * 0.55f)
         val warmth = settings.warmth.coerceIn(-0.04f, 0.04f) * intensity
 
         val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
