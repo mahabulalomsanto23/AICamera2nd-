@@ -72,6 +72,7 @@ jobs:
           retention-days: 30
 
       - name: Publish direct APK download on GitHub Release
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
