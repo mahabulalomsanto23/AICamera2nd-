@@ -56,17 +56,20 @@ object SceneAnalyzer {
         }
     }
 
-    fun tune(settings: EnhanceSettings, profile: Profile): EnhanceSettings = when (profile) {
-        Profile.PEOPLE -> settings.copy(intensity = settings.intensity * 0.82f, warmth = 0f, contrast = 1.06f)
-        Profile.OUTDOOR, Profile.NATURE -> settings.copy(intensity = (settings.intensity * 0.92f).coerceAtMost(1f), warmth = 0f, contrast = 1.06f)
-        Profile.SUNSET -> settings.copy(intensity = (settings.intensity * 0.82f).coerceAtMost(1f), warmth = 0.015f, contrast = 1.06f)
-        Profile.NIGHT -> settings.copy(intensity = settings.intensity * 0.55f, contrast = 1.06f, warmth = 0f)
-        Profile.INDOOR -> settings.copy(intensity = settings.intensity * 0.78f, warmth = 0.01f, contrast = 1.06f)
-        Profile.FOOD -> settings.copy(intensity = (settings.intensity * 0.88f).coerceAtMost(1f), warmth = 0.015f, contrast = 1.06f)
-        Profile.FLOWERS -> settings.copy(intensity = (settings.intensity * 0.96f).coerceAtMost(1f), contrast = 1.06f)
-        Profile.ANIMALS -> settings.copy(intensity = settings.intensity * 0.82f, contrast = 1.06f)
-        Profile.ARCHITECTURE -> settings.copy(intensity = settings.intensity * 0.72f, contrast = 1.06f)
-        Profile.GENERAL -> settings.copy(contrast = 1.06f, warmth = 0f)
+    fun tune(settings: EnhanceSettings, profile: Profile): EnhanceSettings {
+        val profileName = profile.name
+        return when (profile) {
+            Profile.PEOPLE -> settings.copy(intensity = settings.intensity * 0.84f, warmth = 0f, contrast = 1.07f, sceneProfile = profileName)
+            Profile.OUTDOOR, Profile.NATURE -> settings.copy(intensity = (settings.intensity * 1.04f).coerceAtMost(1f), warmth = 0f, contrast = 1.08f, sceneProfile = profileName)
+            Profile.SUNSET -> settings.copy(intensity = (settings.intensity * 0.90f).coerceAtMost(1f), warmth = 0.018f, contrast = 1.07f, sceneProfile = profileName)
+            Profile.NIGHT -> settings.copy(intensity = settings.intensity * 0.55f, contrast = 1.06f, warmth = 0f, sceneProfile = profileName)
+            Profile.INDOOR -> settings.copy(intensity = settings.intensity * 0.84f, warmth = 0.008f, contrast = 1.07f, sceneProfile = profileName)
+            Profile.FOOD -> settings.copy(intensity = (settings.intensity * 0.98f).coerceAtMost(1f), warmth = 0.012f, contrast = 1.08f, sceneProfile = profileName)
+            Profile.FLOWERS -> settings.copy(intensity = (settings.intensity * 1.04f).coerceAtMost(1f), contrast = 1.08f, sceneProfile = profileName)
+            Profile.ANIMALS -> settings.copy(intensity = settings.intensity * 0.90f, contrast = 1.07f, sceneProfile = profileName)
+            Profile.ARCHITECTURE -> settings.copy(intensity = settings.intensity * 0.82f, contrast = 1.08f, sceneProfile = profileName)
+            Profile.GENERAL -> settings.copy(contrast = 1.07f, warmth = 0f, sceneProfile = profileName)
+        }
     }
 
     fun close() {
