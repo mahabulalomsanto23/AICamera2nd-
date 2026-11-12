@@ -114,16 +114,16 @@ class MainActivity : AppCompatActivity() {
     private fun buildInterface() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(14), dp(8), dp(14), dp(8))
-            background = gradient(Color.rgb(9,11,24), Color.rgb(23,17,48), 0)
+            background = android.graphics.drawable.ColorDrawable(Color.rgb(12, 16, 28))
         }
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        brand.addView(label("✦ AI CAMERA PRO", 21f, Color.WHITE, true))
+        brand.addView(label("AI CAMERA", 19f, Color.WHITE, true))
         
         header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
-        header.addView(label("● OFFLINE", 10f, 0xFF4CFFC1.toInt(), true))
-        root.addView(header); root.addView(space(10))
-        val frame = FrameLayout(this).apply { background = gradient(0xFF241E45.toInt(), 0xFF0C1123.toInt(), 26); clipToOutline = true }
+        header.addView(label("OFFLINE", 10f, 0xFF4CFFC1.toInt(), true))
+        root.addView(header); root.addView(space(8))
+        val frame = FrameLayout(this).apply { background = gradient(0xFF172235.toInt(), 0xFF0C111B.toInt(), 18); clipToOutline = true }
         preview = PreviewView(this).apply { scaleType = PreviewView.ScaleType.FILL_CENTER }
         preview.setOnTouchListener { _, event ->
             if (event.action == android.view.MotionEvent.ACTION_UP) {
@@ -142,13 +142,13 @@ class MainActivity : AppCompatActivity() {
         photo = CompareView(this).apply { visibility = View.GONE; setBackgroundColor(Color.BLACK) }
         frame.addView(preview, FrameLayout.LayoutParams(-1,-1))
         frame.addView(photo, FrameLayout.LayoutParams(-1,-1))
-        val hint = label("LIVE CAMERA  •  VIVID AI", 10f, Color.WHITE, true).apply {
-            setPadding(dp(12),dp(8),dp(12),dp(8)); background = gradient(0xCC7C4DFF.toInt(),0xCC00B8D4.toInt(),20)
+        val hint = label("CAMERA", 10f, Color.WHITE, true).apply {
+            setPadding(dp(10),dp(6),dp(10),dp(6)); background = gradient(0xCC26364F.toInt(),0xCC26364F.toInt(),12)
         }
         frame.addView(hint, FrameLayout.LayoutParams(-2,-2,Gravity.TOP or Gravity.START).apply { setMargins(dp(12),dp(12),0,0) })
         root.addView(frame, LinearLayout.LayoutParams(-1,0,1f)); root.addView(space(7))
         status = label("Ready • AI mode",11f,0xFFBFB7DC.toInt()); root.addView(status); root.addView(space(8))
-        val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(9),dp(7),dp(9),dp(7)); background = gradient(0xFF211B3E.toInt(),0xFF161C34.toInt(),20) }
+        val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6),dp(4),dp(6),dp(4)); background = gradient(0xFF182235.toInt(),0xFF182235.toInt(),14) }
         
         modeRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         addMode("AI AUTO",EnhanceMode.AI,0xFF8B5CF6.toInt())
@@ -161,7 +161,7 @@ class MainActivity : AppCompatActivity() {
         flashButton = action(if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF", 0xFF35415F.toInt()) { toggleFlash() }
         cameraControls.addView(flashButton, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5); marginEnd = dp(5) })
         cameraControls.addView(action("⚙ SETTINGS", 0xFF5A347F.toInt()) { showSaveSettings() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5) })
-        root.addView(cameraControls); root.addView(space(3))
+        root.addView(cameraControls); root.addView(space(5))
         blurPresetButton = action("BLUR STRENGTH",0xFF663D9B.toInt()) { showBlurPresets() }; blurPresetButton.visibility = View.GONE
         root.addView(blurPresetButton, LinearLayout.LayoutParams(-1,dp(36)))
         root.addView(space(3))
@@ -182,7 +182,7 @@ class MainActivity : AppCompatActivity() {
                 override fun onStopTrackingTouch(s: SeekBar?) {}
             })
         }
-        root.addView(slider); root.addView(space(4))
+        root.addView(slider); root.addView(space(2))
         val actions = LinearLayout(this).apply { gravity = Gravity.CENTER; orientation = LinearLayout.HORIZONTAL }
         actions.addView(action("GALLERY",0xFF303B5B.toInt()) { picker.launch("image/*") },LinearLayout.LayoutParams(0,dp(48),1f).apply { marginEnd=dp(6) })
         actions.addView(action("●  CAPTURE",0xFF8B35E8.toInt()) { takePhoto() },LinearLayout.LayoutParams(0,dp(54),1.35f).apply { marginStart=dp(6); marginEnd=dp(6) })
@@ -438,14 +438,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-    private fun toggleCompare() {
-        val before=original ?: run { status.text="Capture or open a photo to compare"; return }
-        val after=enhanced ?: return
-        showingOriginal=!showingOriginal; photo.showOriginalOnly(showingOriginal)
-        status.text=if(showingOriginal) "NORMAL • Tap compare to see VIVID result" else "ENHANCED • Tap compare to see ORIGINAL"
-    }
     private fun showSaveSettings() {
-        val choices = arrayOf("Image saving preference", "Default startup mode", "Default portrait blur", "Flash on launch")
+        val choices = arrayOf("Image saving preference", "Default startup mode", "Default portrait blur", "Flash on launch", "Exposure & zoom")
         AlertDialog.Builder(this).setTitle("Camera settings")
             .setItems(choices) { _, which ->
                 when (which) {
@@ -455,6 +449,19 @@ class MainActivity : AppCompatActivity() {
                     3 -> showFlashPreferenceSetting()
                 }
             }.setNegativeButton("CLOSE", null).show()
+    }
+
+    private fun showCameraAdjustments() {
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(8), dp(18), dp(8))
+        }
+        buildCameraAdjustments(panel)
+        AlertDialog.Builder(this)
+            .setTitle("Camera adjustments")
+            .setView(panel)
+            .setPositiveButton("DONE", null)
+            .show()
     }
 
     private fun showSaveModeSetting() {
