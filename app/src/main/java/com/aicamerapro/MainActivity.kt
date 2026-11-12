@@ -187,10 +187,7 @@ class MainActivity : AppCompatActivity() {
         actions.addView(action("GALLERY",0xFF303B5B.toInt()) { picker.launch("image/*") },LinearLayout.LayoutParams(0,dp(48),1f).apply { marginEnd=dp(6) })
         actions.addView(action("●  CAPTURE",0xFF8B35E8.toInt()) { takePhoto() },LinearLayout.LayoutParams(0,dp(54),1.35f).apply { marginStart=dp(6); marginEnd=dp(6) })
         actions.addView(action("SAVE",0xFF007F83.toInt()) { savePhoto() },LinearLayout.LayoutParams(0,dp(48),1f).apply { marginStart=dp(6) })
-        root.addView(actions); root.addView(space(3))
-        root.addView(label("DRAG TO COMPARE  •  TAP FOR ORIGINAL",9f,0xFF00E5FF.toInt(),true).apply {
-            gravity=Gravity.CENTER; setPadding(0,dp(8),0,dp(4)); setOnClickListener { toggleCompare() }
-        })
+        root.addView(actions); root.addView(space(2))
         setContentView(root); refreshModes()
     }
 
@@ -447,6 +444,7 @@ class MainActivity : AppCompatActivity() {
                     1 -> showStartupModeSetting()
                     2 -> showDefaultBlurSetting()
                     3 -> showFlashPreferenceSetting()
+                    4 -> showCameraAdjustments()
                 }
             }.setNegativeButton("CLOSE", null).show()
     }
