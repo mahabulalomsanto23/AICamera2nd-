@@ -45,7 +45,7 @@ object PortraitProcessor {
                             // Keep blur radius moderate: large downscaling creates an artificial, flat blur.
                             // A smoother, higher-resolution blur retains more natural background texture.
                             val strength = blurStrength.coerceIn(0f, 1f)
-                            val divisor = (5f + strength * 7f).toInt().coerceAtLeast(4)
+                            val divisor = (3.5f + strength * 4.5f).toInt().coerceAtLeast(3)
                             val small = Bitmap.createScaledBitmap(enhanced, max(1, width / divisor), max(1, height / divisor), true)
                             val blurred = Bitmap.createScaledBitmap(small, width, height, true)
                             if (small !== blurred && small !== enhanced) small.recycle()
@@ -79,7 +79,7 @@ object PortraitProcessor {
                                     val feathered = edge * edge * (3f - 2f * edge)
                                     // Blend a restrained amount of blur for a more photographic result.
                                     val alpha = 1f - feathered
-                                    val blurMix = 0.42f + strength * 0.28f
+                                    val blurMix = 0.55f + strength * 0.40f
                                     val fg = foregroundRow[x]
                                     val bg = backgroundRow[x]
                                     fun channel(shift: Int): Int {
