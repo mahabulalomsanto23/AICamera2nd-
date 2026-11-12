@@ -53,7 +53,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var intensityTitle: TextView
     private lateinit var modeRow: LinearLayout
     private lateinit var blurPresetButton: TextView
-    private lateinit var flashButton: TextView
     private var original: Bitmap? = null
     private var enhanced: Bitmap? = null
     private var currentMode = EnhanceMode.AI
@@ -63,12 +62,12 @@ class MainActivity : AppCompatActivity() {
     private var cameraProvider: ProcessCameraProvider? = null
     private var boundCamera: Camera? = null
     private var lensFacing = CameraSelector.LENS_FACING_BACK
-    private var flashEnabled = false
     private var saveMode = "both"
     private var startupMode = "AI"
     private var defaultPortraitBlur = 0.50f
     private var sourceExifUri: Uri? = null
     private var sourceExifFile: File? = null
+    private var autoSaveAfterCapture = false
 
     private val cameraPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
         if (it) startCamera() else status.text = "Camera permission is needed to take photos"
@@ -85,8 +84,7 @@ class MainActivity : AppCompatActivity() {
                 listOf(
                     CameraSettings.readSaveMode(this@MainActivity),
                     CameraSettings.readStartupMode(this@MainActivity),
-                    CameraSettings.readPortraitBlur(this@MainActivity).toString(),
-                    CameraSettings.readFlashEnabled(this@MainActivity).toString()
+                    CameraSettings.readPortraitBlur(this@MainActivity).toString()
                 )
             }
             saveMode = stored[0]
@@ -94,8 +92,6 @@ class MainActivity : AppCompatActivity() {
             currentMode = runCatching { EnhanceMode.valueOf(startupMode) }.getOrDefault(EnhanceMode.AI)
             defaultPortraitBlur = stored[2].toFloatOrNull()?.coerceIn(0.25f, 1f) ?: 0.50f
             intensity = 0.58f
-            flashEnabled = stored[3].toBoolean()
-            flashButton.text = "ϟ"
             intensityTitle.text = if (currentMode == EnhanceMode.PORTRAIT) "BACKGROUND BLUR" else "VIBRANCE POWER"
             intensityLabel.text = "${(intensity * 100).toInt()}%"
             refreshModes()
@@ -162,8 +158,6 @@ class MainActivity : AppCompatActivity() {
                 }
                 setOnClickListener { click() }
             }
-        flashButton = topControl(if (flashEnabled) "ϟ" else "ϟ", "Flash") { toggleFlash() }
-        topBar.addView(flashButton, LinearLayout.LayoutParams(dp(44), dp(44)))
         val spacer = View(this)
         topBar.addView(spacer, LinearLayout.LayoutParams(0, 1, 1f))
         topBar.addView(topControl("⚙", "Camera settings") { showSaveSettings() },
@@ -365,7 +359,7 @@ class MainActivity : AppCompatActivity() {
         val cameraPreview = Preview.Builder().build().also { it.setSurfaceProvider(preview.surfaceProvider) }
         capture = ImageCapture.Builder()
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
-            .setFlashMode(if (flashEnabled && lensFacing == CameraSelector.LENS_FACING_BACK) ImageCapture.FLASH_MODE_ON else ImageCapture.FLASH_MODE_OFF)
+            .setFlashMode(ImageCapture.FLASH_MODE_OFF)
             .build()
         try {
             provider.unbindAll()
@@ -384,13 +378,6 @@ class MainActivity : AppCompatActivity() {
         if (cameraProvider != null) bindCamera()
     }
 
-    private fun toggleFlash() {
-        flashEnabled = !flashEnabled
-        flashButton.text = "ϟ"
-        lifecycleScope.launch { withContext(Dispatchers.IO) { CameraSettings.writeFlashEnabled(this@MainActivity, flashEnabled) } }
-        if (cameraProvider != null && lensFacing == CameraSelector.LENS_FACING_BACK) bindCamera()
-        status.text = if (flashEnabled) "Flash enabled for rear camera" else "Flash disabled"
-    }
 
     private fun takePhoto() {
         if(!cameraBound) { status.text="Camera is starting…"; return }
@@ -401,7 +388,17 @@ class MainActivity : AppCompatActivity() {
                 worker.execute {
                     val bitmap = decodeUpright(open = { file.inputStream() }, exifOrientation = readExifOrientation { ExifInterface(file.absolutePath) })
                     runOnUiThread {
-                        if (bitmap != null) { sourceExifFile = file; sourceExifUri = null; showPhoto(bitmap) } else status.text = "Could not read captured image"
+                        if (bitmap != null) {
+                            sourceExifFile = file
+                            sourceExifUri = null
+                            original = bitmap
+                            enhanced = null
+                            autoSaveAfterCapture = true
+                            photo.visibility = View.GONE
+                            preview.visibility = View.VISIBLE
+                            showingOriginal = false
+                            process(bitmap)
+                        } else status.text = "Could not read captured image"
                     }
                 }
             }
@@ -477,10 +474,7 @@ class MainActivity : AppCompatActivity() {
             PortraitProcessor.enhance(bitmap, settings, intensity,
                 { result ->
                     runOnUiThread {
-                        enhanced = result
-                        photo.setImages(original, result)
-                        showingOriginal = false
-                        status.text = "✦ Portrait enhanced • Offline AI segmentation"
+                        finishEnhancement(result, "✦ Portrait enhanced • Offline AI segmentation")
                     }
                 },
                 { error ->
@@ -488,7 +482,7 @@ class MainActivity : AppCompatActivity() {
                         status.text = "Portrait model unavailable • Using safe AI enhancement"
                         worker.execute {
                             val fallback = VividProcessor.enhance(bitmap, settings.copy(mode = EnhanceMode.AI))
-                            runOnUiThread { enhanced = fallback; photo.setImages(original, fallback) }
+                            runOnUiThread { finishEnhancement(fallback, "✦ Portrait fallback enhanced • Offline") }
                         }
                     }
                 }
@@ -500,37 +494,47 @@ class MainActivity : AppCompatActivity() {
                     worker.execute {
                         val result = VividProcessor.enhance(bitmap, SceneAnalyzer.tune(settings, profile))
                         runOnUiThread {
-                            enhanced = result
-                            photo.setImages(original, result)
-                            showingOriginal = false
-                            status.text = "✦ AI scene: " + profile.name.lowercase().replaceFirstChar { it.uppercase() } + " • Adaptive enhancement"
+                            finishEnhancement(result, "✦ AI scene: " + profile.name.lowercase().replaceFirstChar { it.uppercase() } + " • Adaptive enhancement")
                         }
                     }
                 },
                 {
                     worker.execute {
                         val result = VividProcessor.enhance(bitmap, settings)
-                        runOnUiThread { enhanced = result; photo.setImages(original, result); showingOriginal = false; status.text = "✦ AI fallback enhancement • Offline" }
+                        runOnUiThread { finishEnhancement(result, "✦ AI fallback enhancement • Offline") }
                     }
                 }
             )
         } else {
             worker.execute {
                 val result=VividProcessor.enhance(bitmap,settings)
-                runOnUiThread { enhanced=result; photo.setImages(original, result); showingOriginal=false; status.text="✦ Enhanced • "+result.width+" × "+result.height+" • On-device" }
+                runOnUiThread { finishEnhancement(result, "✦ Enhanced • "+result.width+" × "+result.height+" • On-device") }
             }
         }
     }
+    private fun finishEnhancement(result: Bitmap, message: String) {
+        enhanced = result
+        photo.setImages(original, result)
+        showingOriginal = false
+        if (autoSaveAfterCapture) {
+            autoSaveAfterCapture = false
+            savePhoto()
+        } else {
+            photo.visibility = View.VISIBLE
+            preview.visibility = View.GONE
+            status.text = message
+        }
+    }
+
     private fun showSaveSettings() {
-        val choices = arrayOf("Image saving preference", "Default startup mode", "Default portrait blur", "Flash on launch", "Exposure & zoom")
+        val choices = arrayOf("Image saving preference", "Default startup mode", "Default portrait blur", "Exposure & zoom")
         AlertDialog.Builder(this).setTitle("Camera settings")
             .setItems(choices) { _, which ->
                 when (which) {
                     0 -> showSaveModeSetting()
                     1 -> showStartupModeSetting()
                     2 -> showDefaultBlurSetting()
-                    3 -> showFlashPreferenceSetting()
-                    4 -> showCameraAdjustments()
+                    3 -> showCameraAdjustments()
                 }
             }.setNegativeButton("CLOSE", null).show()
     }
@@ -592,20 +596,6 @@ class MainActivity : AppCompatActivity() {
             }.setNegativeButton("CANCEL", null).show()
     }
 
-    private fun showFlashPreferenceSetting() {
-        val choices = arrayOf("Flash off", "Flash on")
-        AlertDialog.Builder(this).setTitle("Flash on launch")
-            .setSingleChoiceItems(choices, if (flashEnabled) 1 else 0) { dialog, which ->
-                flashEnabled = which == 1
-                flashButton.text = "ϟ"
-                lifecycleScope.launch {
-                    withContext(Dispatchers.IO) { CameraSettings.writeFlashEnabled(this@MainActivity, flashEnabled) }
-                    if (cameraProvider != null) bindCamera()
-                    status.text = "Flash preference saved"
-                }
-                dialog.dismiss()
-            }.setNegativeButton("CANCEL", null).show()
-    }
 
     private fun copySourceExifTo(target: File) {
         val source = try {
