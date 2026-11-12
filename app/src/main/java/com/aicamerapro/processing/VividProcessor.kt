@@ -51,8 +51,7 @@ object VividProcessor {
         val adaptive = if (settings.mode == EnhanceMode.AI) {
             1.0f + (0.38f - averageSaturation).coerceIn(0f, 0.38f) * 0.20f
         } else 1.0f
-        // Color is the primary enhancement: AI mode gives a clear vibrance lift;
-        // VIVID+ is intentionally stronger while retaining highlight/skin guards.
+        // AI is adaptive and restrained; VIVID keeps its stronger established color profile.
         val modeBoost = if (settings.mode == EnhanceMode.VIVID) 1.38f else 1.0f
         val saturationBoost = (1f + intensity * 0.58f) * adaptive * modeBoost
         // Ambiance adds a restrained midtone lift/depth without changing exposure.
@@ -91,10 +90,17 @@ object VividProcessor {
                 var g = luma + (originalG - luma) * sat
                 var b = luma + (originalB - luma) * sat
 
-                // Very small tone shaping; no automatic exposure lift.
-                r = 0.5f + (r - 0.5f) * gentleContrast + warmth * 0.18f
-                g = 0.5f + (g - 0.5f) * gentleContrast
-                b = 0.5f + (b - 0.5f) * gentleContrast - warmth * 0.12f
+                // Scene-aware AI tone curve: gently opens shadows, protects bright skies and keeps midtones natural.
+                val aiShadowLift = if (settings.mode == EnhanceMode.AI) {
+                    (1f - luma).coerceIn(0f, 1f).let { it * it } * 0.032f
+                } else 0f
+                val aiHighlightRollOff = if (settings.mode == EnhanceMode.AI) {
+                    ((luma - 0.70f) / 0.30f).coerceIn(0f, 1f).let { it * it } * 0.035f
+                } else 0f
+                val toneShift = aiShadowLift - aiHighlightRollOff
+                r = 0.5f + (r - 0.5f) * gentleContrast + toneShift + warmth * 0.18f
+                g = 0.5f + (g - 0.5f) * gentleContrast + toneShift
+                b = 0.5f + (b - 0.5f) * gentleContrast + toneShift - warmth * 0.12f
 
                 row[x] = (color and -0x1000000) or
                     ((r.coerceIn(0f, 1f) * 255f).toInt() shl 16) or
