@@ -62,9 +62,26 @@ object VividProcessor {
         val warmth = settings.warmth.coerceIn(-0.04f, 0.04f) * intensity
 
         val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        // Three scanlines are enough for a low-memory, edge-aware luminance sharpen.
+        val previous = IntArray(width)
         val row = IntArray(width)
+        val next = IntArray(width)
+        fun readRow(target: IntArray, y: Int) = source.getPixels(target, 0, width, 0, y.coerceIn(0, height - 1), width, 1)
+        fun lumaOf(pixel: Int): Float {
+            val rr = (pixel shr 16 and 255) / 255f
+            val gg = (pixel shr 8 and 255) / 255f
+            val bb = (pixel and 255) / 255f
+            return 0.2126f * rr + 0.7152f * gg + 0.0722f * bb
+        }
+        readRow(previous, 0)
+        readRow(row, 0)
+        readRow(next, 1)
         for (y in 0 until height) {
-            source.getPixels(row, 0, width, 0, y, width, 1)
+            if (y > 0) {
+                System.arraycopy(row, 0, previous, 0, width)
+                System.arraycopy(next, 0, row, 0, width)
+                readRow(next, y + 1)
+            }
             for (x in 0 until width) {
                 val color = row[x]
                 val originalR = (color shr 16 and 255) / 255f
@@ -112,6 +129,25 @@ object VividProcessor {
                 r = 0.5f + (r - 0.5f) * gentleContrast + toneShift + warmth * 0.18f
                 g = 0.5f + (g - 0.5f) * gentleContrast + toneShift
                 b = 0.5f + (b - 0.5f) * gentleContrast + toneShift - warmth * 0.12f
+
+                // AI-only detail recovery: unsharp-mask luminance, not RGB channels.
+                // This keeps color/skin tones stable and suppresses sharpening halos on flat areas.
+                if (settings.mode == EnhanceMode.AI) {
+                    val left = (x - 1).coerceAtLeast(0)
+                    val right = (x + 1).coerceAtMost(width - 1)
+                    val topLeft = lumaOf(previous[left]); val top = lumaOf(previous[x]); val topRight = lumaOf(previous[right])
+                    val midLeft = lumaOf(row[left]); val midRight = lumaOf(row[right])
+                    val bottomLeft = lumaOf(next[left]); val bottom = lumaOf(next[x]); val bottomRight = lumaOf(next[right])
+                    val soft = (topLeft + 2f * top + topRight + 2f * midLeft + 4f * luma + 2f * midRight +
+                        bottomLeft + 2f * bottom + bottomRight) / 16f
+                    val detail = luma - soft
+                    val edgeGate = ((kotlin.math.abs(detail) - 0.0035f) / 0.035f).coerceIn(0f, 1f)
+                    val faceSafe = if (likelySkin) 0.58f else 1f
+                    val detailBoost = detail * 0.72f * edgeGate * faceSafe
+                    r += detailBoost
+                    g += detailBoost
+                    b += detailBoost
+                }
 
                 row[x] = (color and -0x1000000) or
                     ((r.coerceIn(0f, 1f) * 255f).toInt() shl 16) or
