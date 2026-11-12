@@ -95,7 +95,7 @@ class MainActivity : AppCompatActivity() {
             defaultPortraitBlur = stored[2].toFloatOrNull()?.coerceIn(0.25f, 1f) ?: 0.50f
             intensity = 0.58f
             flashEnabled = stored[3].toBoolean()
-            flashButton.text = if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF"
+            flashButton.text = "ϟ"
             intensityTitle.text = if (currentMode == EnhanceMode.PORTRAIT) "BACKGROUND BLUR" else "VIBRANCE POWER"
             intensityLabel.text = "${(intensity * 100).toInt()}%"
             refreshModes()
