@@ -9,7 +9,8 @@ data class EnhanceSettings(
     val mode: EnhanceMode = EnhanceMode.AI,
     val intensity: Float = 0.50f,
     val warmth: Float = 0.02f,
-    val contrast: Float = 1.0f
+    val contrast: Float = 1.0f,
+    val sceneProfile: String = "GENERAL"
 )
 
 /**
@@ -49,11 +50,11 @@ object VividProcessor {
         }
         val averageSaturation = (saturationSum / max(1, samples)).toFloat()
         val adaptive = if (settings.mode == EnhanceMode.AI) {
-            1.0f + (0.38f - averageSaturation).coerceIn(0f, 0.38f) * 0.20f
+            1.0f + (0.42f - averageSaturation).coerceIn(0f, 0.42f) * 0.34f
         } else 1.0f
         // AI is adaptive and restrained; VIVID keeps its stronger established color profile.
         val modeBoost = if (settings.mode == EnhanceMode.VIVID) 1.38f else 1.0f
-        val saturationBoost = (1f + intensity * 0.58f) * adaptive * modeBoost
+        val saturationBoost = (1f + intensity * if (settings.mode == EnhanceMode.AI) 0.76f else 0.58f) * adaptive * modeBoost
         // Ambiance adds a restrained midtone lift/depth without changing exposure.
         val ambianceBase = 1f + ((settings.contrast.coerceIn(0.96f, 1.12f) - 1f) * 0.55f)
         // Separate iPhone-inspired Vivid rendering: richer color and a touch more tonal depth.
@@ -85,17 +86,27 @@ object VividProcessor {
                 } else 1f
                 val highlightProtection = 1f - ((luma - 0.76f) / 0.24f).coerceIn(0f, 1f) *
                     if (settings.mode == EnhanceMode.VIVID) 0.40f else 0.48f
-                val sat = 1f + (vibranceFactor - 1f) * highlightProtection * skinProtection
+                val profileHueBoost = if (settings.mode == EnhanceMode.AI) {
+                    when (settings.sceneProfile) {
+                        "OUTDOOR", "NATURE" -> when { hue in 75f..165f -> 1.22f; hue in 175f..255f -> 1.12f; else -> 1f }
+                        "FOOD" -> if (hue in 5f..55f) 1.16f else 1f
+                        "FLOWERS" -> if (hue in 265f..360f) 1.18f else 1f
+                        "SUNSET" -> if (hue in 0f..48f) 1.12f else 1f
+                        "ARCHITECTURE" -> if (sourceSat < 0.22f) 1.08f else 1f
+                        else -> 1f
+                    }
+                } else 1f
+                val sat = 1f + (vibranceFactor - 1f) * highlightProtection * skinProtection * profileHueBoost
                 var r = luma + (originalR - luma) * sat
                 var g = luma + (originalG - luma) * sat
                 var b = luma + (originalB - luma) * sat
 
                 // Scene-aware AI tone curve: gently opens shadows, protects bright skies and keeps midtones natural.
                 val aiShadowLift = if (settings.mode == EnhanceMode.AI) {
-                    (1f - luma).coerceIn(0f, 1f).let { it * it } * 0.032f
+                    (1f - luma).coerceIn(0f, 1f).let { it * it } * 0.045f
                 } else 0f
                 val aiHighlightRollOff = if (settings.mode == EnhanceMode.AI) {
-                    ((luma - 0.70f) / 0.30f).coerceIn(0f, 1f).let { it * it } * 0.035f
+                    ((luma - 0.70f) / 0.30f).coerceIn(0f, 1f).let { it * it } * 0.050f
                 } else 0f
                 val toneShift = aiShadowLift - aiHighlightRollOff
                 r = 0.5f + (r - 0.5f) * gentleContrast + toneShift + warmth * 0.18f
