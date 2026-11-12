@@ -152,7 +152,7 @@ class MainActivity : AppCompatActivity() {
         card.addView(label("COLOR SCIENCE",10f,0xFF00E5FF.toInt(),true))
         modeRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         addMode("AI AUTO",EnhanceMode.AI,0xFF8B5CF6.toInt())
-        addMode("VIVID+",EnhanceMode.VIVID,0xFFFF4FA3.toInt())
+        addMode("VIVID",EnhanceMode.VIVID,0xFFFF4FA3.toInt())
         addMode("PORTRAIT",EnhanceMode.PORTRAIT,0xFF00BCD4.toInt())
         addMode("NORMAL",EnhanceMode.NORMAL,0xFF65708A.toInt())
         card.addView(modeRow); root.addView(card); root.addView(space(8))
