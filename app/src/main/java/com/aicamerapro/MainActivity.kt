@@ -386,7 +386,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun toggleFlash() {
         flashEnabled = !flashEnabled
-        flashButton.text = if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF"
+        flashButton.text = "ϟ"
         lifecycleScope.launch { withContext(Dispatchers.IO) { CameraSettings.writeFlashEnabled(this@MainActivity, flashEnabled) } }
         if (cameraProvider != null && lensFacing == CameraSelector.LENS_FACING_BACK) bindCamera()
         status.text = if (flashEnabled) "Flash enabled for rear camera" else "Flash disabled"
@@ -597,7 +597,7 @@ class MainActivity : AppCompatActivity() {
         AlertDialog.Builder(this).setTitle("Flash on launch")
             .setSingleChoiceItems(choices, if (flashEnabled) 1 else 0) { dialog, which ->
                 flashEnabled = which == 1
-                flashButton.text = if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF"
+                flashButton.text = "ϟ"
                 lifecycleScope.launch {
                     withContext(Dispatchers.IO) { CameraSettings.writeFlashEnabled(this@MainActivity, flashEnabled) }
                     if (cameraProvider != null) bindCamera()
