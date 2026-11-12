@@ -53,10 +53,12 @@ object VividProcessor {
         } else 1.0f
         // Color is the primary enhancement: AI mode gives a clear vibrance lift;
         // VIVID+ is intentionally stronger while retaining highlight/skin guards.
-        val modeBoost = if (settings.mode == EnhanceMode.VIVID) 1.22f else 1.0f
+        val modeBoost = if (settings.mode == EnhanceMode.VIVID) 1.38f else 1.0f
         val saturationBoost = (1f + intensity * 0.58f) * adaptive * modeBoost
         // Ambiance adds a restrained midtone lift/depth without changing exposure.
-        val gentleContrast = 1f + ((settings.contrast.coerceIn(0.96f, 1.12f) - 1f) * 0.55f)
+        val ambianceBase = 1f + ((settings.contrast.coerceIn(0.96f, 1.12f) - 1f) * 0.55f)
+        // Separate iPhone-inspired Vivid rendering: richer color and a touch more tonal depth.
+        val gentleContrast = ambianceBase * if (settings.mode == EnhanceMode.VIVID) 1.035f else 1f
         val warmth = settings.warmth.coerceIn(-0.04f, 0.04f) * intensity
 
         val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
@@ -79,8 +81,11 @@ object VividProcessor {
                 // Protect daylight highlights and likely skin hues from strong color shifts.
                 val hue = rgbHueDegrees(originalR, originalG, originalB)
                 val likelySkin = hue in 0f..52f && sourceSat in 0.10f..0.62f && luma in 0.18f..0.88f
-                val skinProtection = if (likelySkin) 0.42f else 1f
-                val highlightProtection = 1f - ((luma - 0.76f) / 0.24f).coerceIn(0f, 1f) * 0.48f
+                val skinProtection = if (likelySkin) {
+                    if (settings.mode == EnhanceMode.VIVID) 0.48f else 0.42f
+                } else 1f
+                val highlightProtection = 1f - ((luma - 0.76f) / 0.24f).coerceIn(0f, 1f) *
+                    if (settings.mode == EnhanceMode.VIVID) 0.40f else 0.48f
                 val sat = 1f + (vibranceFactor - 1f) * highlightProtection * skinProtection
                 var r = luma + (originalR - luma) * sat
                 var g = luma + (originalG - luma) * sat
