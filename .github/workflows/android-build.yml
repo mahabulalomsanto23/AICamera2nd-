@@ -2,7 +2,7 @@ name: Build AI Camera Pro APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, daylight-natural-color]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -68,16 +68,17 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish APK as GitHub Release "latest"
-        continue-on-error: true
+      - name: Publish direct APK download on GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
-          gh release delete latest --yes --cleanup-tag || true
+          if gh release view latest >/dev/null 2>&1; then
+            gh release delete latest --yes --cleanup-tag
+          fi
           gh release create latest "${{ steps.apk.outputs.path }}" \
             --target "$GITHUB_SHA" \
             --prerelease \
             --title "AI Camera Pro - latest build" \
-            --notes "Direct-download APK for OnePlus 8 (Android 13). Download AI-Camera-Pro-OnePlus8.apk and install."
+            --notes "Direct APK download. Install AI-Camera-Pro-OnePlus8.apk on OnePlus 8 (Android 13)."
