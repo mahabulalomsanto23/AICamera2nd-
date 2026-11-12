@@ -66,6 +66,7 @@ object VividProcessor {
         val previous = IntArray(width)
         val row = IntArray(width)
         val next = IntArray(width)
+        val outputRow = IntArray(width)
         fun readRow(target: IntArray, y: Int) = source.getPixels(target, 0, width, 0, y.coerceIn(0, height - 1), width, 1)
         fun lumaOf(pixel: Int): Float {
             val rr = (pixel shr 16 and 255) / 255f
@@ -149,12 +150,12 @@ object VividProcessor {
                     b += detailBoost
                 }
 
-                row[x] = (color and -0x1000000) or
+                outputRow[x] = (color and -0x1000000) or
                     ((r.coerceIn(0f, 1f) * 255f).toInt() shl 16) or
                     ((g.coerceIn(0f, 1f) * 255f).toInt() shl 8) or
                     (b.coerceIn(0f, 1f) * 255f).toInt()
             }
-            output.setPixels(row, 0, width, 0, y, width, 1)
+            output.setPixels(outputRow, 0, width, 0, y, width, 1)
         }
         return output
     }
