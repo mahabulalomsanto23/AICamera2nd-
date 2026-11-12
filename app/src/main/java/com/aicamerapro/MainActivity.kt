@@ -113,13 +113,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun buildInterface() {
         val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(12), dp(18), dp(12))
+            orientation = LinearLayout.VERTICAL; setPadding(dp(14), dp(8), dp(14), dp(8))
             background = gradient(Color.rgb(9,11,24), Color.rgb(23,17,48), 0)
         }
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         brand.addView(label("✦ AI CAMERA PRO", 21f, Color.WHITE, true))
-        brand.addView(label("PROFESSIONAL PHOTOGRAPHY ENGINE", 9f, 0xFFAEA4D6.toInt(), true))
+        
         header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
         header.addView(label("● OFFLINE", 10f, 0xFF4CFFC1.toInt(), true))
         root.addView(header); root.addView(space(10))
@@ -146,10 +146,10 @@ class MainActivity : AppCompatActivity() {
             setPadding(dp(12),dp(8),dp(12),dp(8)); background = gradient(0xCC7C4DFF.toInt(),0xCC00B8D4.toInt(),20)
         }
         frame.addView(hint, FrameLayout.LayoutParams(-2,-2,Gravity.TOP or Gravity.START).apply { setMargins(dp(12),dp(12),0,0) })
-        root.addView(frame, LinearLayout.LayoutParams(-1,0,1f)); root.addView(space(12))
-        status = label("Ready • AI mode selected",12f,0xFFBFB7DC.toInt()); root.addView(status); root.addView(space(8))
-        val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12),dp(10),dp(12),dp(10)); background = gradient(0xFF211B3E.toInt(),0xFF161C34.toInt(),20) }
-        card.addView(label("COLOR SCIENCE",10f,0xFF00E5FF.toInt(),true))
+        root.addView(frame, LinearLayout.LayoutParams(-1,0,1f)); root.addView(space(7))
+        status = label("Ready • AI mode",11f,0xFFBFB7DC.toInt()); root.addView(status); root.addView(space(8))
+        val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(9),dp(7),dp(9),dp(7)); background = gradient(0xFF211B3E.toInt(),0xFF161C34.toInt(),20) }
+        
         modeRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         addMode("AI AUTO",EnhanceMode.AI,0xFF8B5CF6.toInt())
         addMode("VIVID",EnhanceMode.VIVID,0xFFFF4FA3.toInt())
@@ -161,10 +161,10 @@ class MainActivity : AppCompatActivity() {
         flashButton = action(if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF", 0xFF35415F.toInt()) { toggleFlash() }
         cameraControls.addView(flashButton, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5); marginEnd = dp(5) })
         cameraControls.addView(action("⚙ SETTINGS", 0xFF5A347F.toInt()) { showSaveSettings() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5) })
-        root.addView(cameraControls); root.addView(space(6))
-        blurPresetButton = action("✦  FOUR PORTRAIT BLUR PRESETS",0xFF663D9B.toInt()) { showBlurPresets() }; blurPresetButton.visibility = View.GONE
+        root.addView(cameraControls); root.addView(space(3))
+        blurPresetButton = action("BLUR STRENGTH",0xFF663D9B.toInt()) { showBlurPresets() }; blurPresetButton.visibility = View.GONE
         root.addView(blurPresetButton, LinearLayout.LayoutParams(-1,dp(36)))
-        root.addView(space(6))
+        root.addView(space(3))
         buildCameraAdjustments(root)
         val sliderHead = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         intensityTitle = label("VIBRANCE POWER",10f,0xFFBFB7DC.toInt(),true); sliderHead.addView(intensityTitle,LinearLayout.LayoutParams(0,-2,1f))
@@ -182,13 +182,13 @@ class MainActivity : AppCompatActivity() {
                 override fun onStopTrackingTouch(s: SeekBar?) {}
             })
         }
-        root.addView(slider); root.addView(space(8))
+        root.addView(slider); root.addView(space(4))
         val actions = LinearLayout(this).apply { gravity = Gravity.CENTER; orientation = LinearLayout.HORIZONTAL }
         actions.addView(action("GALLERY",0xFF303B5B.toInt()) { picker.launch("image/*") },LinearLayout.LayoutParams(0,dp(48),1f).apply { marginEnd=dp(6) })
         actions.addView(action("●  CAPTURE",0xFF8B35E8.toInt()) { takePhoto() },LinearLayout.LayoutParams(0,dp(54),1.35f).apply { marginStart=dp(6); marginEnd=dp(6) })
         actions.addView(action("SAVE",0xFF007F83.toInt()) { savePhoto() },LinearLayout.LayoutParams(0,dp(48),1f).apply { marginStart=dp(6) })
-        root.addView(actions); root.addView(space(8))
-        root.addView(label("↔  DRAG DIVIDER TO COMPARE • TAP TOGGLE ORIGINAL",10f,0xFF00E5FF.toInt(),true).apply {
+        root.addView(actions); root.addView(space(3))
+        root.addView(label("DRAG TO COMPARE  •  TAP FOR ORIGINAL",9f,0xFF00E5FF.toInt(),true).apply {
             gravity=Gravity.CENTER; setPadding(0,dp(8),0,dp(4)); setOnClickListener { toggleCompare() }
         })
         setContentView(root); refreshModes()
